@@ -1,0 +1,378 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Player club profile, customization preferences, and lifetime party game stats.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Authenticated Firebase UID matching the document ID."
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Public player nickname shown in party rooms."
+        },
+        "bio": {
+          "type": "string",
+          "description": "Short player status or club bio."
+        },
+        "avatarIndex": {
+          "type": "integer",
+          "description": "Selected avatar badge index (0..7)."
+        },
+        "accentIndex": {
+          "type": "integer",
+          "description": "Selected personal club accent theme index (0..4)."
+        },
+        "favoriteGame": {
+          "type": "string",
+          "enum": ["DRAW_GUESS", "WHO_IS_SPY", "WORD_BOMB"],
+          "description": "Player's favorite party mini-game."
+        },
+        "coins": {
+          "type": "integer",
+          "description": "Total party coins earned."
+        },
+        "xp": {
+          "type": "integer",
+          "description": "Total experience points earned."
+        },
+        "gamesPlayed": {
+          "type": "integer",
+          "description": "Total party games completed."
+        },
+        "gamesWon": {
+          "type": "integer",
+          "description": "Total party games won."
+        },
+        "defaultRoundSeconds": {
+          "type": "integer",
+          "description": "User's custom house-rule round duration in seconds (20..120)."
+        },
+        "defaultMaxPlayers": {
+          "type": "integer",
+          "description": "User's custom house-rule max room capacity (2..8)."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp (FieldValue.serverTimestamp()) when profile was created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp (FieldValue.serverTimestamp()) when profile was updated."
+        }
+      },
+      "required": [
+        "userId",
+        "displayName",
+        "avatarIndex",
+        "accentIndex",
+        "favoriteGame",
+        "coins",
+        "xp",
+        "gamesPlayed",
+        "gamesWon",
+        "defaultRoundSeconds",
+        "defaultMaxPlayers",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "MatchRecord": {
+      "title": "MatchRecord",
+      "description": "Immutable record of a completed solo or multiplayer party game.",
+      "type": "object",
+      "properties": {
+        "gameType": {
+          "type": "string",
+          "enum": ["DRAW_GUESS", "WHO_IS_SPY", "WORD_BOMB"],
+          "description": "Party game type."
+        },
+        "mode": {
+          "type": "string",
+          "enum": ["SOLO_BOTS", "MULTIPLAYER_ROOM"],
+          "description": "Whether played with party bots or in a live room."
+        },
+        "roomTitle": {
+          "type": "string",
+          "description": "Title of the room or solo session."
+        },
+        "score": {
+          "type": "integer",
+          "description": "Final score achieved."
+        },
+        "coinsEarned": {
+          "type": "integer",
+          "description": "Coins rewarded for the match."
+        },
+        "xpEarned": {
+          "type": "integer",
+          "description": "XP rewarded for the match."
+        },
+        "won": {
+          "type": "boolean",
+          "description": "Whether the player won the match."
+        },
+        "playersCount": {
+          "type": "integer",
+          "description": "Number of participants in the match."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp (FieldValue.serverTimestamp()) when match finished."
+        }
+      },
+      "required": [
+        "gameType",
+        "mode",
+        "roomTitle",
+        "score",
+        "coinsEarned",
+        "xpEarned",
+        "won",
+        "playersCount",
+        "createdAt"
+      ]
+    },
+    "CustomPack": {
+      "title": "CustomPack",
+      "description": "User-authored custom word, spy pair, or trivia deck for their own WePlay version.",
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "Custom pack title."
+        },
+        "gameType": {
+          "type": "string",
+          "enum": ["DRAW_GUESS", "WHO_IS_SPY", "WORD_BOMB"],
+          "description": "Target game type for this pack."
+        },
+        "items": {
+          "type": "array",
+          "description": "Bounded list (1..30) of custom prompts or pipe-delimited pairs."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp (FieldValue.serverTimestamp()) when pack was created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp (FieldValue.serverTimestamp()) when pack was updated."
+        }
+      },
+      "required": ["title", "gameType", "items", "createdAt", "updatedAt"]
+    },
+    "PartyRoom": {
+      "title": "PartyRoom",
+      "description": "Live multiplayer party game room shared by participants.",
+      "type": "object",
+      "properties": {
+        "hostId": {
+          "type": "string",
+          "description": "UID of the player who created and hosts the room."
+        },
+        "hostName": {
+          "type": "string",
+          "description": "Display name of the host."
+        },
+        "title": {
+          "type": "string",
+          "description": "Party room title."
+        },
+        "gameType": {
+          "type": "string",
+          "enum": ["DRAW_GUESS", "WHO_IS_SPY", "WORD_BOMB"],
+          "description": "Selected mini-game for the room."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["WAITING", "PLAYING", "FINISHED"],
+          "description": "Current room lifecycle status."
+        },
+        "isPublic": {
+          "type": "boolean",
+          "description": "Whether the room appears in public lobby discovery."
+        },
+        "roundSeconds": {
+          "type": "integer",
+          "description": "Configured round duration in seconds (20..120)."
+        },
+        "maxPlayers": {
+          "type": "integer",
+          "description": "Maximum allowed players (2..8)."
+        },
+        "currentRound": {
+          "type": "integer",
+          "description": "Current active round number."
+        },
+        "activePrompt": {
+          "type": "string",
+          "description": "Active game prompt or round clue."
+        },
+        "memberUids": {
+          "type": "array",
+          "description": "Bounded list (1..8) of member UIDs."
+        },
+        "memberNames": {
+          "type": "array",
+          "description": "Bounded list (1..8) of member display names."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp (FieldValue.serverTimestamp()) when room was created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp (FieldValue.serverTimestamp()) when room was updated."
+        }
+      },
+      "required": [
+        "hostId",
+        "hostName",
+        "title",
+        "gameType",
+        "status",
+        "isPublic",
+        "roundSeconds",
+        "maxPlayers",
+        "currentRound",
+        "activePrompt",
+        "memberUids",
+        "memberNames",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "RoomMessage": {
+      "title": "RoomMessage",
+      "description": "Real-time party chat or game guess message inside a room.",
+      "type": "object",
+      "properties": {
+        "senderId": {
+          "type": "string",
+          "description": "UID of the sender."
+        },
+        "senderName": {
+          "type": "string",
+          "description": "Display name of the sender."
+        },
+        "text": {
+          "type": "string",
+          "description": "Message body."
+        },
+        "msgType": {
+          "type": "string",
+          "enum": ["CHAT", "GUESS", "SYSTEM"],
+          "description": "Message category."
+        },
+        "isPublicRoom": {
+          "type": "boolean",
+          "description": "Denormalized public flag from parent room."
+        },
+        "memberUids": {
+          "type": "array",
+          "description": "Denormalized bounded list (1..8) of room member UIDs."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp (FieldValue.serverTimestamp()) when sent."
+        }
+      },
+      "required": [
+        "senderId",
+        "senderName",
+        "text",
+        "msgType",
+        "isPublicRoom",
+        "memberUids",
+        "createdAt"
+      ]
+    },
+    "CanvasStroke": {
+      "title": "CanvasStroke",
+      "description": "Real-time Draw & Guess vector stroke synced across a party room.",
+      "type": "object",
+      "properties": {
+        "artistId": {
+          "type": "string",
+          "description": "UID of the player drawing the stroke."
+        },
+        "colorHex": {
+          "type": "string",
+          "description": "Stroke color hex string."
+        },
+        "strokeWidth": {
+          "type": "integer",
+          "description": "Stroke width in dp."
+        },
+        "pointsEncoded": {
+          "type": "string",
+          "description": "Normalized polyline coordinates encoded as x,y;x,y."
+        },
+        "roundNumber": {
+          "type": "integer",
+          "description": "Round number when stroke was drawn."
+        },
+        "isPublicRoom": {
+          "type": "boolean",
+          "description": "Denormalized public flag from parent room."
+        },
+        "memberUids": {
+          "type": "array",
+          "description": "Denormalized bounded list (1..8) of room member UIDs."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp (FieldValue.serverTimestamp()) when stroke was created."
+        }
+      },
+      "required": [
+        "artistId",
+        "colorHex",
+        "strokeWidth",
+        "pointsEncoded",
+        "roundNumber",
+        "isPublicRoom",
+        "memberUids",
+        "createdAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Owner-isolated player profile and customization settings."
+    },
+    "/users/{userId}/matches/{matchId}": {
+      "schema": { "$ref": "#/entities/MatchRecord" },
+      "description": "Owner-isolated match history records."
+    },
+    "/users/{userId}/customPacks/{packId}": {
+      "schema": { "$ref": "#/entities/CustomPack" },
+      "description": "Owner-isolated custom word, spy, and trivia decks."
+    },
+    "/rooms/{roomId}": {
+      "schema": { "$ref": "#/entities/PartyRoom" },
+      "description": "Live multiplayer party rooms discoverable if public or accessible to members."
+    },
+    "/rooms/{roomId}/messages/{messageId}": {
+      "schema": { "$ref": "#/entities/RoomMessage" },
+      "description": "Real-time room chat messages and game guesses."
+    },
+    "/rooms/{roomId}/strokes/{strokeId}": {
+      "schema": { "$ref": "#/entities/CanvasStroke" },
+      "description": "Real-time Draw & Guess canvas strokes."
+    }
+  }
+}

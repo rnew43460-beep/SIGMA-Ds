@@ -1,0 +1,6 @@
+{
+  "name": "WePlay Club",
+  "description": "Social party game hub with live multiplayer rooms, Draw & Guess, Who's the Spy, Quick Trivia, and custom player profiles.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

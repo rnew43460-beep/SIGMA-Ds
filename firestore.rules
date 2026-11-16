@@ -1,0 +1,348 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Shared Hardened Primitives ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidGameType(gameType) {
+      return gameType in ['DRAW_GUESS', 'WHO_IS_SPY', 'WORD_BOMB'];
+    }
+
+    function isValidRoomStatus(status) {
+      return status in ['WAITING', 'PLAYING', 'FINISHED'];
+    }
+
+    // --- Validation Helpers ---
+    function isValidUserProfile(data) {
+      return data.userId is string && data.userId == request.auth.uid &&
+             data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 30 &&
+             (!('bio' in data) || (data.bio is string && data.bio.size() <= 160)) &&
+             data.avatarIndex is int && data.avatarIndex >= 0 && data.avatarIndex <= 7 &&
+             data.accentIndex is int && data.accentIndex >= 0 && data.accentIndex <= 4 &&
+             data.favoriteGame is string && isValidGameType(data.favoriteGame) &&
+             data.coins is int && data.coins >= 0 && data.coins <= 10000000 &&
+             data.xp is int && data.xp >= 0 && data.xp <= 10000000 &&
+             data.gamesPlayed is int && data.gamesPlayed >= 0 && data.gamesPlayed <= 1000000 &&
+             data.gamesWon is int && data.gamesWon >= 0 && data.gamesWon <= 1000000 &&
+             data.defaultRoundSeconds is int && data.defaultRoundSeconds >= 20 && data.defaultRoundSeconds <= 120 &&
+             data.defaultMaxPlayers is int && data.defaultMaxPlayers >= 2 && data.defaultMaxPlayers <= 8;
+    }
+
+    function isValidMatchRecord(data) {
+      return data.gameType is string && isValidGameType(data.gameType) &&
+             data.mode is string && data.mode in ['SOLO_BOTS', 'MULTIPLAYER_ROOM'] &&
+             data.roomTitle is string && data.roomTitle.size() >= 1 && data.roomTitle.size() <= 60 &&
+             data.score is int && data.score >= 0 && data.score <= 100000 &&
+             data.coinsEarned is int && data.coinsEarned >= 0 && data.coinsEarned <= 10000 &&
+             data.xpEarned is int && data.xpEarned >= 0 && data.xpEarned <= 10000 &&
+             data.won is bool &&
+             data.playersCount is int && data.playersCount >= 1 && data.playersCount <= 12;
+    }
+
+    function isValidCustomPack(data) {
+      return data.title is string && data.title.size() >= 1 && data.title.size() <= 40 &&
+             data.gameType is string && isValidGameType(data.gameType) &&
+             data.items is list && data.items.size() >= 1 && data.items.size() <= 30 &&
+             (data.items[0] is string && data.items[0].size() >= 1 && data.items[0].size() <= 80);
+    }
+
+    function isValidPartyRoom(data) {
+      return data.hostId is string && data.hostId.size() >= 1 && data.hostId.size() <= 128 &&
+             data.hostName is string && data.hostName.size() >= 1 && data.hostName.size() <= 30 &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 50 &&
+             data.gameType is string && isValidGameType(data.gameType) &&
+             data.status is string && isValidRoomStatus(data.status) &&
+             data.isPublic is bool &&
+             data.roundSeconds is int && data.roundSeconds >= 20 && data.roundSeconds <= 120 &&
+             data.maxPlayers is int && data.maxPlayers >= 2 && data.maxPlayers <= 8 &&
+             data.currentRound is int && data.currentRound >= 0 && data.currentRound <= 20 &&
+             data.activePrompt is string && data.activePrompt.size() <= 120 &&
+             data.memberUids is list && data.memberUids.size() >= 1 && data.memberUids.size() <= 8 &&
+             (data.memberUids[0] is string && data.memberUids[0].size() >= 1 && data.memberUids[0].size() <= 128) &&
+             data.memberNames is list && data.memberNames.size() >= 1 && data.memberNames.size() <= 8 &&
+             (data.memberNames[0] is string && data.memberNames[0].size() >= 1 && data.memberNames[0].size() <= 30);
+    }
+
+    function isValidRoomMessage(data) {
+      return data.senderId is string && data.senderId.size() >= 1 && data.senderId.size() <= 128 &&
+             data.senderName is string && data.senderName.size() >= 1 && data.senderName.size() <= 30 &&
+             data.text is string && data.text.size() >= 1 && data.text.size() <= 240 &&
+             data.msgType is string && data.msgType in ['CHAT', 'GUESS', 'SYSTEM'] &&
+             data.isPublicRoom is bool &&
+             data.memberUids is list && data.memberUids.size() >= 1 && data.memberUids.size() <= 8 &&
+             (data.memberUids[0] is string && data.memberUids[0].size() >= 1 && data.memberUids[0].size() <= 128);
+    }
+
+    function isValidCanvasStroke(data) {
+      return data.artistId is string && data.artistId.size() >= 1 && data.artistId.size() <= 128 &&
+             data.colorHex is string && data.colorHex.size() >= 4 && data.colorHex.size() <= 10 &&
+             data.strokeWidth is int && data.strokeWidth >= 2 && data.strokeWidth <= 32 &&
+             data.pointsEncoded is string && data.pointsEncoded.size() >= 1 && data.pointsEncoded.size() <= 4000 &&
+             data.roundNumber is int && data.roundNumber >= 0 && data.roundNumber <= 20 &&
+             data.isPublicRoom is bool &&
+             data.memberUids is list && data.memberUids.size() >= 1 && data.memberUids.size() <= 8 &&
+             (data.memberUids[0] is string && data.memberUids[0].size() >= 1 && data.memberUids[0].size() <= 128);
+    }
+
+    // --- /users/{userId} ---
+    match /users/{userId} {
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow list: if isOwner(userId);
+
+      allow create: if isOwner(userId) &&
+                       isValidId(userId) &&
+                       incoming().keys().hasAll([
+                         'userId', 'displayName', 'avatarIndex', 'accentIndex',
+                         'favoriteGame', 'coins', 'xp', 'gamesPlayed', 'gamesWon',
+                         'defaultRoundSeconds', 'defaultMaxPlayers', 'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'userId', 'displayName', 'bio', 'avatarIndex', 'accentIndex',
+                         'favoriteGame', 'coins', 'xp', 'gamesPlayed', 'gamesWon',
+                         'defaultRoundSeconds', 'defaultMaxPlayers', 'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().createdAt is timestamp && incoming().createdAt <= request.time &&
+                       incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+                       isValidUserProfile(incoming());
+
+      allow update: if isOwner(userId) &&
+                       isValidId(userId) &&
+                       isValidUserProfile(incoming()) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+                       incoming().diff(existing()).affectedKeys().hasOnly([
+                         'displayName', 'bio', 'avatarIndex', 'accentIndex',
+                         'favoriteGame', 'coins', 'xp', 'gamesPlayed', 'gamesWon',
+                         'defaultRoundSeconds', 'defaultMaxPlayers', 'updatedAt'
+                       ]);
+
+      allow delete: if isOwner(userId) && isValidId(userId);
+
+      // --- /users/{userId}/matches/{matchId} ---
+      match /matches/{matchId} {
+        allow get: if isOwner(userId) && isValidId(matchId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(matchId) &&
+                         incoming().keys().hasAll([
+                           'gameType', 'mode', 'roomTitle', 'score',
+                           'coinsEarned', 'xpEarned', 'won', 'playersCount', 'createdAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'gameType', 'mode', 'roomTitle', 'score',
+                           'coinsEarned', 'xpEarned', 'won', 'playersCount', 'createdAt'
+                         ]) &&
+                         incoming().createdAt is timestamp && incoming().createdAt <= request.time &&
+                         isValidMatchRecord(incoming());
+
+        allow update: if false;
+        allow delete: if isOwner(userId) && isValidId(matchId);
+      }
+
+      // --- /users/{userId}/customPacks/{packId} ---
+      match /customPacks/{packId} {
+        allow get: if isOwner(userId) && isValidId(packId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(packId) &&
+                         incoming().keys().hasAll([
+                           'title', 'gameType', 'items', 'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'title', 'gameType', 'items', 'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().createdAt is timestamp && incoming().createdAt <= request.time &&
+                         incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+                         isValidCustomPack(incoming());
+
+        allow update: if isOwner(userId) &&
+                         isValidId(packId) &&
+                         isValidCustomPack(incoming()) &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'title', 'gameType', 'items', 'updatedAt'
+                         ]);
+
+        allow delete: if isOwner(userId) && isValidId(packId);
+      }
+    }
+
+    // --- /rooms/{roomId} ---
+    match /rooms/{roomId} {
+      allow get: if isSignedIn() &&
+                    isValidId(roomId) &&
+                    (existing().isPublic == true || request.auth.uid in existing().memberUids);
+
+      allow list: if isSignedIn() &&
+                     (existing().isPublic == true || request.auth.uid in existing().memberUids);
+
+      allow create: if isSignedIn() &&
+                       isValidId(roomId) &&
+                       incoming().keys().hasAll([
+                         'hostId', 'hostName', 'title', 'gameType', 'status',
+                         'isPublic', 'roundSeconds', 'maxPlayers', 'currentRound',
+                         'activePrompt', 'memberUids', 'memberNames', 'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'hostId', 'hostName', 'title', 'gameType', 'status',
+                         'isPublic', 'roundSeconds', 'maxPlayers', 'currentRound',
+                         'activePrompt', 'memberUids', 'memberNames', 'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().hostId == request.auth.uid &&
+                       incoming().status == 'WAITING' &&
+                       incoming().memberUids.size() == 1 &&
+                       request.auth.uid in incoming().memberUids &&
+                       incoming().createdAt is timestamp && incoming().createdAt <= request.time &&
+                       incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+                       isValidPartyRoom(incoming());
+
+      allow update: if isSignedIn() &&
+                       isValidId(roomId) &&
+                       isValidPartyRoom(incoming()) &&
+                       incoming().hostId == existing().hostId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+                       existing().status != 'FINISHED' &&
+                       (
+                         // Action 1: Host updates room state, prompt, or settings
+                         (
+                           existing().hostId == request.auth.uid &&
+                           incoming().diff(existing()).affectedKeys().hasOnly([
+                             'title', 'gameType', 'status', 'isPublic',
+                             'roundSeconds', 'maxPlayers', 'currentRound', 'activePrompt', 'updatedAt'
+                           ])
+                         ) ||
+                         // Action 2: Player joins room while waiting and under capacity
+                         (
+                           existing().status == 'WAITING' &&
+                           !(request.auth.uid in existing().memberUids) &&
+                           existing().memberUids.size() < existing().maxPlayers &&
+                           request.auth.uid in incoming().memberUids &&
+                           incoming().memberUids.size() == existing().memberUids.size() + 1 &&
+                           incoming().memberUids.hasAll(existing().memberUids) &&
+                           incoming().memberNames.size() == existing().memberNames.size() + 1 &&
+                           incoming().diff(existing()).affectedKeys().hasOnly([
+                             'memberUids', 'memberNames', 'updatedAt'
+                           ])
+                         ) ||
+                         // Action 3: Non-host member leaves room
+                         (
+                           request.auth.uid in existing().memberUids &&
+                           existing().hostId != request.auth.uid &&
+                           !(request.auth.uid in incoming().memberUids) &&
+                           incoming().memberUids.size() == existing().memberUids.size() - 1 &&
+                           incoming().diff(existing()).affectedKeys().hasOnly([
+                             'memberUids', 'memberNames', 'updatedAt'
+                           ])
+                         )
+                       );
+
+      allow delete: if isSignedIn() &&
+                       isValidId(roomId) &&
+                       existing().hostId == request.auth.uid;
+
+      // --- /rooms/{roomId}/messages/{messageId} ---
+      match /messages/{messageId} {
+        allow get: if isSignedIn() &&
+                      isValidId(roomId) &&
+                      isValidId(messageId) &&
+                      (existing().isPublicRoom == true || request.auth.uid in existing().memberUids);
+
+        allow list: if isSignedIn() &&
+                       (existing().isPublicRoom == true || request.auth.uid in existing().memberUids);
+
+        allow create: if isSignedIn() &&
+                         isValidId(roomId) &&
+                         isValidId(messageId) &&
+                         incoming().keys().hasAll([
+                           'senderId', 'senderName', 'text', 'msgType',
+                           'isPublicRoom', 'memberUids', 'createdAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'senderId', 'senderName', 'text', 'msgType',
+                           'isPublicRoom', 'memberUids', 'createdAt'
+                         ]) &&
+                         incoming().senderId == request.auth.uid &&
+                         incoming().createdAt is timestamp && incoming().createdAt <= request.time &&
+                         isValidRoomMessage(incoming()) &&
+                         exists(/databases/$(database)/documents/rooms/$(roomId)) &&
+                         (
+                           get(/databases/$(database)/documents/rooms/$(roomId)).data.isPublic == true ||
+                           request.auth.uid in get(/databases/$(database)/documents/rooms/$(roomId)).data.memberUids
+                         );
+
+        allow update, delete: if false;
+      }
+
+      // --- /rooms/{roomId}/strokes/{strokeId} ---
+      match /strokes/{strokeId} {
+        allow get: if isSignedIn() &&
+                      isValidId(roomId) &&
+                      isValidId(strokeId) &&
+                      (existing().isPublicRoom == true || request.auth.uid in existing().memberUids);
+
+        allow list: if isSignedIn() &&
+                       (existing().isPublicRoom == true || request.auth.uid in existing().memberUids);
+
+        allow create: if isSignedIn() &&
+                         isValidId(roomId) &&
+                         isValidId(strokeId) &&
+                         incoming().keys().hasAll([
+                           'artistId', 'colorHex', 'strokeWidth', 'pointsEncoded',
+                           'roundNumber', 'isPublicRoom', 'memberUids', 'createdAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'artistId', 'colorHex', 'strokeWidth', 'pointsEncoded',
+                           'roundNumber', 'isPublicRoom', 'memberUids', 'createdAt'
+                         ]) &&
+                         incoming().artistId == request.auth.uid &&
+                         incoming().createdAt is timestamp && incoming().createdAt <= request.time &&
+                         isValidCanvasStroke(incoming()) &&
+                         exists(/databases/$(database)/documents/rooms/$(roomId)) &&
+                         (
+                           get(/databases/$(database)/documents/rooms/$(roomId)).data.isPublic == true ||
+                           request.auth.uid in get(/databases/$(database)/documents/rooms/$(roomId)).data.memberUids
+                         );
+
+        allow update: if false;
+
+        allow delete: if isSignedIn() &&
+                         isValidId(roomId) &&
+                         isValidId(strokeId) &&
+                         (
+                           existing().artistId == request.auth.uid ||
+                           get(/databases/$(database)/documents/rooms/$(roomId)).data.hostId == request.auth.uid
+                         );
+      }
+    }
+  }
+}
